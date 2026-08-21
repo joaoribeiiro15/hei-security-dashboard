@@ -1,0 +1,1203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HEI Web Security Assessment</title>
+    <script>
+      // Applies the saved theme before first paint so the page never
+      // flashes dark-then-light (or vice versa) on load. Dark is the
+      // default for first-time visitors. Kept in sync with theme.js.
+      (function () {
+        var t = "dark";
+        try {
+          var saved = localStorage.getItem("hei_theme");
+          if (saved === "light" || saved === "dark") t = saved;
+        } catch (e) {}
+        document.documentElement.setAttribute("data-theme", t);
+      })();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/style/main.css" />
+    <link rel="stylesheet" href="/style/components.css" />
+    <link rel="stylesheet" href="/style/country-bar.css" />
+    <link rel="stylesheet" href="/style/map.css" />
+    <link rel="stylesheet" href="/style/institutions.css" />
+    <link rel="stylesheet" href="/style/modals.css" />
+  </head>
+  <body>
+    <div id="loading-overlay" class="loading-overlay">
+      <div class="loading-box">
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="loading-text">Loading data<span id="loading-dots"></span></div>
+      </div>
+    </div>
+    <script>
+      // Cycles the loading text through ".", "..", "..." on a loop. Started
+      // immediately (inline, before any other script loads) since the
+      // overlay itself is visible from first paint. Stopped by
+      // _hideLoadingOverlay() in auth.js once data has finished loading.
+      (function () {
+        var dotsEl = document.getElementById("loading-dots");
+        var n = 0;
+        window._loadingDotsTimer = setInterval(function () {
+          n = (n % 3) + 1;
+          if (dotsEl) dotsEl.textContent = ".".repeat(n);
+        }, 450);
+      })();
+    </script>
+    <div class="hdr">
+      <div class="hdr-top">
+        <div class="hdr-ttl">
+          <h1>HEI Web Security Assessment</h1>
+          <p>
+            Comparative evaluation of HTTPS, DNSSEC, and HTTP Security Headers
+            across Higher Education Institutions
+          </p>
+        </div>
+        <div id="user-chip" class="user-chip" style="display: none">
+          <div class="avatar" id="uc-avatar">?</div>
+          <div>
+            <div class="uname" id="uc-name">—</div>
+            <div class="urole" id="uc-role">—</div>
+          </div>
+          <button class="logout" id="uc-logout" title="Sign out">
+            Sign out
+          </button>
+        </div>
+      </div>
+      <div class="hdr-m" id="hm" style="display: none"></div>
+    </div>
+    <div class="cbar" id="cbar">
+      <span class="cbar-label">Countries</span
+      ><span class="cbar-empty" id="cbar-empty"
+        >No data loaded — upload CSV files to begin</span
+      ><div class="cbar-dd" id="continent-dd" style="display:none"
+        ><button class="dd-btn" id="continent-btn" onclick="toggleDd('continent-dd')"
+          ><span id="continent-btn-text" style="display:inline-flex;align-items:center;gap:.3rem">All continents</span
+          ><span class="dd-chevron">▾</span></button
+        ><div class="dd-panel" id="continent-panel"></div
+      ></div
+      ><div class="cbar-dd" id="country-dd" style="display:none"
+        ><button class="dd-btn" id="country-btn" onclick="toggleDd('country-dd')"
+          ><span id="country-btn-content">Select country</span
+          ><span class="dd-chevron">▾</span></button
+        ><div class="dd-panel" id="country-panel"></div
+      ></div
+      ><span class="cbar-hint" id="cbar-hint"></span>
+    </div>
+    <div class="scope-nav" id="scope-nav">
+      <button class="scope-btn" data-scope="institution">Institution</button>
+      <button class="scope-btn" data-scope="regional">Regional</button>
+      <button class="scope-btn on" data-scope="national">National</button>
+      <button
+        class="scope-btn"
+        data-scope="international"
+        id="scope-intl"
+        style="display: none"
+      >
+        International
+      </button>
+      <div class="scope-nav-right">
+        <button
+          class="admin-btn"
+          id="btn-data"
+          style="display: none"
+          onclick="navigate('_upload', '')"
+        >
+          &#9881; Data
+        </button>
+        <button
+          class="admin-btn"
+          id="btn-report"
+          style="display: none"
+          onclick="navigate('_report', '')"
+        >
+          &#128196; Report
+        </button>
+        <div id="time-ctrl" style="display: none; align-items: center">
+          <button id="time-btn" onclick="toggleTimePanel()">
+            &#128336; Time
+          </button>
+        </div>
+        <button
+          class="admin-btn"
+          id="theme-toggle"
+          onclick="toggleTheme()"
+          title="Switch to light mode"
+        >
+          &#9728;&#65039; Light
+        </button>
+      </div>
+    </div>
+    <div class="sub-tabs" id="sub-tabs">
+      <button class="sub-tab on" data-sub="global">Global</button>
+      <button class="sub-tab" data-sub="https">HTTPS / TLS</button>
+      <button class="sub-tab" data-sub="dnssec">DNSSEC</button>
+      <button class="sub-tab" data-sub="headers">Security Headers</button>
+    </div>
+    <div id="time-panel">
+      <div class="tp-label">Snapshot</div>
+      <div class="sv-toggle">
+        <button
+          class="sv-btn on"
+          onclick="_snapViewSwitch('dropdown')"
+          data-sv="dropdown"
+        >
+          &#9663; List
+        </button>
+        <button
+          class="sv-btn"
+          onclick="_snapViewSwitch('calendar')"
+          data-sv="calendar"
+        >
+          &#128197; Calendar
+        </button>
+      </div>
+      <div id="snap-view-area">
+        <select id="snap-a" class="snap-sel" onchange="onSnapChange()"></select>
+        <div id="snap-list-view" style="display: none"></div>
+        <div id="snap-cal-view" style="display: none"></div>
+      </div>
+      <div class="tp-label" style="margin-top: 0.75rem">Compare with</div>
+      <select id="snap-b" class="snap-sel" onchange="onSnapChange()"></select>
+      <div id="tp-hint" class="tp-hint"></div>
+    </div>
+    <div class="cnt">
+      <!-- ═══════════════════ NATIONAL scope ═══════════════════ -->
+      <div class="sec on" id="sec-national-global">
+        <div class="stl">
+          <span class="dt" style="background: var(--cyan)"></span> Dashboard
+          Overview
+        </div>
+        <div class="g4" id="os"></div>
+        <div class="g3" id="oc"></div>
+        <div id="oa"></div>
+        <div id="nat-map-wrap" style="display: none">
+          <div class="stl" style="margin-top: 1.5rem">
+            <span class="dt" style="background: var(--green)"></span> Regional
+            Map — NUTS2
+          </div>
+          <div class="map-controls">
+            <button
+              class="mbtn on"
+              data-ms="composite"
+              onclick="setMapScanner(this)"
+            >
+              Global Score
+            </button>
+            <button
+              class="mbtn"
+              data-ms="dnssec"
+              onclick="setMapScanner(this)"
+            >
+              DNSSEC
+            </button>
+            <button class="mbtn" data-ms="https" onclick="setMapScanner(this)">
+              HTTPS / TLS
+            </button>
+            <button
+              class="mbtn"
+              data-ms="headers"
+              onclick="setMapScanner(this)"
+            >
+              Security Headers
+            </button>
+          </div>
+          <div class="map-wrap">
+            <div class="map-svg-wrap">
+              <div id="map-container" style="width: 100%">
+                <div class="map-loading">Loading map data...</div>
+              </div>
+              <div class="map-tip" id="map-tip"></div>
+            </div>
+            <div class="map-sidebar">
+              <div class="map-legend" id="map-legend"></div>
+              <div class="map-rcards" id="map-rcards"></div>
+            </div>
+          </div>
+        </div>
+        <div class="stl" style="margin-top:2rem;font-size:.9rem">
+          <span class="dt" style="background:var(--blue)"></span> Institution Detail
+        </div>
+        <div class="srch-wrap"><svg class="srch-icon" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.6"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input class="srch" id="nts" placeholder="Search institutions…"/></div>
+        <div id="nttw"></div>
+      </div>
+      <div class="sec" id="sec-national-https">
+        <div class="stl">
+          <span class="dt" style="background: var(--green)"></span> HTTPS / TLS
+          Analysis
+          <button class="faq-btn" onclick="openModal('https')" title="Scoring guide">💡</button>
+        </div>
+        <div class="g4" id="hs"></div>
+        <div class="g2" id="hc"></div>
+        <div class="stl" style="margin-top:2rem;font-size:.9rem">
+          <span class="dt" style="background:var(--blue)"></span> Institution Detail
+        </div>
+        <div class="srch-wrap"><svg class="srch-icon" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.6"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input class="srch" id="nts-https" placeholder="Search institutions…"/></div>
+        <div id="nttw-https"></div>
+      </div>
+      <div class="sec" id="sec-national-dnssec">
+        <div class="stl">
+          <span class="dt" style="background: var(--purple)"></span> DNSSEC
+          Analysis
+          <button class="faq-btn" onclick="openModal('dnssec')" title="Scoring guide">💡</button>
+        </div>
+        <div class="g4" id="ds"></div>
+        <div class="g2" id="dc"></div>
+        <div class="stl" style="margin-top:2rem;font-size:.9rem">
+          <span class="dt" style="background:var(--blue)"></span> Institution Detail
+        </div>
+        <div class="srch-wrap"><svg class="srch-icon" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.6"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input class="srch" id="nts-dnssec" placeholder="Search institutions…"/></div>
+        <div id="nttw-dnssec"></div>
+      </div>
+      <div class="sec" id="sec-national-headers">
+        <div class="stl">
+          <span class="dt" style="background: var(--amber)"></span> HTTP
+          Security Headers Analysis
+          <button class="faq-btn" onclick="openModal('headers')" title="Scoring guide">💡</button>
+        </div>
+        <div class="g4" id="shs"></div>
+        <div class="g2" id="shc"></div>
+        <div class="stl" style="margin-top:2rem;font-size:.9rem">
+          <span class="dt" style="background:var(--blue)"></span> Institution Detail
+        </div>
+        <div class="srch-wrap"><svg class="srch-icon" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.6"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input class="srch" id="nts-headers" placeholder="Search institutions…"/></div>
+        <div id="nttw-headers"></div>
+      </div>
+
+      <!-- ═══════════════════ REGIONAL scope ═══════════════════ -->
+      <div class="sec" id="sec-regional-global">
+        <div class="stl">
+          <span class="dt" style="background: var(--green)"></span> Regional Overview — All Scanners
+        </div>
+        <div id="r-inst-glb"></div>
+      </div>
+      <div class="sec" id="sec-regional-https">
+        <div class="stl">
+          <span class="dt" style="background: var(--green)"></span> HTTPS / TLS — Regional Breakdown
+        </div>
+        <div class="g2" id="rh-c"></div>
+        <div id="r-inst-https"></div>
+      </div>
+      <div class="sec" id="sec-regional-dnssec">
+        <div class="stl">
+          <span class="dt" style="background: var(--purple)"></span> DNSSEC — Regional Breakdown
+        </div>
+        <div class="g2" id="rd-c"></div>
+        <div id="r-inst-dnssec"></div>
+      </div>
+      <div class="sec" id="sec-regional-headers">
+        <div class="stl">
+          <span class="dt" style="background: var(--amber)"></span> Security Headers — Regional Breakdown
+        </div>
+        <div class="g2" id="rs-c"></div>
+        <div id="r-inst-headers"></div>
+      </div>
+
+      <!-- ═══════════════════ INSTITUTION scope ═══════════════════ -->
+      <div class="sec" id="sec-institution-global">
+        <div class="stl">
+          <span class="dt" style="background: var(--blue)"></span> My Institution — Overview
+        </div>
+        <div class="g4" id="io-s"></div>
+        <div id="io-rank" style="margin-top:1rem"></div>
+        <div id="io-c" style="margin-top:.5rem;padding-left:1.5rem"></div>
+      </div>
+      <div class="sec" id="sec-institution-https">
+        <div class="stl">
+          <span class="dt" style="background: var(--green)"></span> My Institution — HTTPS / TLS
+          <button class="faq-btn" onclick="openModal('https')" title="Scoring guide">💡</button>
+        </div>
+        <div class="g4" id="ih-s"></div>
+        <div id="ih-c" style="margin-top:1rem"></div>
+        <div id="ih-rank"></div>
+      </div>
+      <div class="sec" id="sec-institution-dnssec">
+        <div class="stl">
+          <span class="dt" style="background: var(--purple)"></span> My Institution — DNSSEC
+          <button class="faq-btn" onclick="openModal('dnssec')" title="Scoring guide">💡</button>
+        </div>
+        <div class="g4" id="id-s"></div>
+        <div id="id-c" style="margin-top:1rem"></div>
+        <div id="id-rank"></div>
+      </div>
+      <div class="sec" id="sec-institution-headers">
+        <div class="stl">
+          <span class="dt" style="background: var(--amber)"></span> My Institution — Security Headers
+          <button class="faq-btn" onclick="openModal('headers')" title="Scoring guide">💡</button>
+        </div>
+        <div class="g4" id="ish-s"></div>
+        <div id="ish-c" style="margin-top:1rem"></div>
+        <div id="ish-rank"></div>
+      </div>
+
+      <!-- ═══════════════════ INTERNATIONAL scope ═══════════════════ -->
+      <div class="sec" id="sec-international-global">
+        <div class="stl">
+          <span class="dt" style="background: var(--cyan)"></span> International Comparison — Overview
+        </div>
+        <div class="g4" id="intl-s"></div>
+        <div class="g2" id="intl-c"></div>
+        <div style="margin-top:1.5rem" id="intl-ct"></div>
+      </div>
+      <div class="sec" id="sec-international-https">
+        <div class="stl">
+          <span class="dt" style="background: var(--green)"></span> International Comparison — HTTPS / TLS
+        </div>
+        <div class="g4" id="intl-hs"></div>
+        <div class="g2" id="intl-hc"></div>
+        <div style="margin-top:1.5rem" id="intl-hct"></div>
+      </div>
+      <div class="sec" id="sec-international-dnssec">
+        <div class="stl">
+          <span class="dt" style="background: var(--purple)"></span> International Comparison — DNSSEC
+        </div>
+        <div class="g4" id="intl-ds"></div>
+        <div class="g2" id="intl-dc"></div>
+        <div style="margin-top:1.5rem" id="intl-dct"></div>
+      </div>
+      <div class="sec" id="sec-international-headers">
+        <div class="stl">
+          <span class="dt" style="background: var(--amber)"></span> International Comparison — Security Headers
+        </div>
+        <div class="g4" id="intl-ss"></div>
+        <div class="g2" id="intl-sc"></div>
+        <div style="margin-top:1.5rem" id="intl-sct"></div>
+      </div>
+
+      <!-- ═══════════════════ ADMIN sections (no sub-tabs) ═══════════════════ -->
+      <div class="sec" id="sec-upload">
+        <div class="stl">
+          <span class="dt" style="background: var(--cyan)"></span> Data
+          Management
+        </div>
+        <p style="color: var(--t2); font-size: 0.85rem; margin-bottom: 1.2rem">
+          Upload the
+          <code
+            style="
+              background: var(--card2);
+              padding: 0.1rem 0.4rem;
+              border-radius: 4px;
+              font-family: &quot;JetBrains Mono&quot;, monospace;
+              font-size: 0.8rem;
+            "
+            >src/</code
+          >
+          directory from the Thesis Scripts project — all scanner result CSVs
+          are detected automatically. Alternatively, upload individual CSV files
+          using the second zone.
+        </p>
+        <div
+          style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem"
+        >
+          <div class="uz" id="uz" style="flex: 1; min-width: 220px">
+            <div class="ic">&#128193;</div>
+            <div class="ti">Upload <strong>src/</strong> folder</div>
+            <div class="hi">
+              Click or drag the entire src/ directory — results detected
+              automatically
+            </div>
+            <input type="file" id="fi" webkitdirectory multiple />
+          </div>
+          <div class="uz" id="uz2" style="flex: 1; min-width: 220px">
+            <div class="ic">&#128196;</div>
+            <div class="ti">Upload individual CSV files</div>
+            <div class="hi">
+              Drop or select specific result CSV files manually
+            </div>
+            <input type="file" id="fi2" multiple accept=".csv" />
+          </div>
+        </div>
+        <div id="ur"></div>
+        <div class="stl" style="font-size: 0.95rem; margin-top: 2rem">
+          <span class="dt" style="background: var(--green)"></span> Loaded
+          Datasets
+        </div>
+        <div class="fsg" id="fsg"></div>
+      </div>
+
+      <div class="sec" id="sec-report">
+        <div class="stl">
+          <span class="dt" style="background: var(--cyan)"></span> Country
+          Report Generator
+        </div>
+        <p style="color: var(--t2); font-size: 0.85rem; margin-bottom: 1.5rem">
+          Generate a comprehensive A4 PDF report for the selected country. The
+          report includes all statistics, charts, and data tables from each
+          analysis domain, formatted for professional presentation and printing.
+        </p>
+        <div id="report-status"></div>
+        <div
+          style="
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 1.5rem;
+          "
+        >
+          <div>
+            <label
+              style="
+                font-size: 0.72rem;
+                color: var(--t3);
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                font-weight: 600;
+                display: block;
+                margin-bottom: 0.4rem;
+              "
+              >Report Title</label
+            >
+            <input
+              id="rpt-title"
+              class="srch"
+              style="width: 400px; margin: 0"
+              placeholder="Web Security Assessment Report"
+              value=""
+            />
+          </div>
+          <div>
+            <label
+              style="
+                font-size: 0.72rem;
+                color: var(--t3);
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                font-weight: 600;
+                display: block;
+                margin-bottom: 0.4rem;
+              "
+              >Author</label
+            >
+            <input
+              id="rpt-author"
+              class="srch"
+              style="width: 250px; margin: 0"
+              placeholder="(optional)"
+              value=""
+            />
+          </div>
+          <button
+            id="btn-gen-report"
+            onclick="generateReport()"
+            style="
+              background: linear-gradient(135deg, var(--cyan), var(--blue));
+              color: #fff;
+              border: none;
+              border-radius: 8px;
+              padding: 0.65rem 1.5rem;
+              font-size: 0.85rem;
+              font-weight: 700;
+              cursor: pointer;
+              font-family: inherit;
+              white-space: nowrap;
+              height: 42px;
+              transition: 0.2s;
+            "
+          >
+            Download PDF Report
+          </button>
+        </div>
+        <div
+          style="
+            background: var(--card);
+            border: 1px solid var(--bdr);
+            border-radius: var(--r);
+            padding: 1.2rem;
+            margin-bottom: 1.5rem;
+          "
+        >
+          <div
+            style="
+              font-size: 0.82rem;
+              font-weight: 600;
+              color: var(--t2);
+              text-transform: uppercase;
+              letter-spacing: 0.04em;
+              margin-bottom: 0.8rem;
+            "
+          >
+            Sections included
+          </div>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+              gap: 0.6rem;
+            "
+          >
+            <label
+              style="
+                font-size: 0.82rem;
+                color: var(--t1);
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                cursor: pointer;
+              "
+              ><input type="checkbox" id="rpt-sec-overview" checked /> Overview
+              &amp; Summary</label
+            >
+            <label
+              style="
+                font-size: 0.82rem;
+                color: var(--t1);
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                cursor: pointer;
+              "
+              ><input type="checkbox" id="rpt-sec-https" checked /> HTTPS / TLS
+              Analysis</label
+            >
+            <label
+              style="
+                font-size: 0.82rem;
+                color: var(--t1);
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                cursor: pointer;
+              "
+              ><input type="checkbox" id="rpt-sec-dnssec" checked /> DNSSEC
+              Analysis</label
+            >
+            <label
+              style="
+                font-size: 0.82rem;
+                color: var(--t1);
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                cursor: pointer;
+              "
+              ><input type="checkbox" id="rpt-sec-headers" checked /> Security
+              Headers Analysis</label
+            >
+
+            <label
+              style="
+                font-size: 0.82rem;
+                color: var(--t1);
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                cursor: pointer;
+              "
+              ><input type="checkbox" id="rpt-sec-table" checked /> Institutions
+              Table</label
+            >
+          </div>
+        </div>
+        <div
+          id="rpt-progress"
+          style="
+            display: none;
+            background: var(--card);
+            border: 1px solid var(--bdr);
+            border-radius: var(--r);
+            padding: 1.2rem;
+            margin-bottom: 1.5rem;
+          "
+        >
+          <div
+            style="
+              font-size: 0.82rem;
+              font-weight: 600;
+              color: var(--t2);
+              margin-bottom: 0.6rem;
+            "
+            id="rpt-prog-label"
+          >
+            Generating PDF...
+          </div>
+          <div
+            style="
+              background: var(--card2);
+              border-radius: 6px;
+              height: 8px;
+              overflow: hidden;
+            "
+          >
+            <div
+              id="rpt-prog-bar"
+              style="
+                height: 100%;
+                width: 0%;
+                background: linear-gradient(90deg, var(--cyan), var(--blue));
+                border-radius: 6px;
+                transition: width 0.3s;
+              "
+            ></div>
+          </div>
+          <div
+            style="font-size: 0.72rem; color: var(--t3); margin-top: 0.4rem"
+            id="rpt-prog-detail"
+          ></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/js/country-meta.js"></script>
+    <script src="/js/data-store.js"></script>
+    <script src="/js/theme.js"></script>
+    <script src="/js/scanner-detect.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/aggregation.js"></script>
+    <script src="/js/charts.js"></script>
+    <script src="/js/csv-processor.js"></script>
+    <script src="/js/country-bar.js"></script>
+    <script src="/js/timeline-helpers.js"></script>
+    <script src="/js/builders/national.js"></script>
+    <script src="/js/builders/regional.js"></script>
+    <script src="/js/builders/institution.js"></script>
+    <script src="/js/builders/international.js"></script>
+    <script src="/js/institution-table.js"></script>
+    <script src="/js/navigation.js"></script>
+    <script src="/js/map.js"></script>
+    <script src="/js/modals.js"></script>
+    <script src="/js/report.js"></script>
+    <script src="/js/app.js"></script>
+
+    <!-- HTTPS FAQ Modal -->
+    <div
+      class="modal-bg"
+      id="modal-https"
+      onclick="if (event.target === this) closeModal('https');"
+    >
+      <div class="modal">
+        <h2>
+          🔒 HTTPS / TLS &mdash; Scoring Guide
+          <button class="close" onclick="closeModal('https')">&#10005;</button>
+        </h2>
+
+        <h3>How the score is calculated</h3>
+        <p>
+          The scanner uses <strong>testssl.sh</strong> to probe each
+          institution's primary domain. It evaluates protocol support,
+          certificate validity, and the presence of modern security features.
+          The final score (0–100) and grade reflect the overall TLS
+          configuration quality.
+        </p>
+
+        <h3>Grade thresholds</h3>
+        <table class="grade-table">
+          <thead>
+            <tr>
+              <th>Grade</th>
+              <th>Score range</th>
+              <th>💡 What it means</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="gb ap">A+</span></td>
+              <td>93–96 + extras</td>
+              <td>
+                TLS 1.2 and 1.3 only, valid certificate, OCSP stapling or DNS
+                CAA configured — the gold standard.
+              </td>
+            </tr>
+            <tr>
+              <td><span class="gb a">A</span></td>
+              <td>93–96</td>
+              <td>
+                Modern TLS only, valid certificate. Excellent posture with minor
+                optional features absent.
+              </td>
+            </tr>
+            <tr>
+              <td><span class="gb b">B</span></td>
+              <td>88–94</td>
+              <td>
+                TLS 1.0 or TLS 1.1 still enabled alongside modern versions, or
+                certificate features missing. Functional but outdated protocols
+                remain.
+              </td>
+            </tr>
+            <tr>
+              <td><span class="gb c">C</span></td>
+              <td>70–87</td>
+              <td>
+                Multiple legacy protocols enabled or significant certificate
+                issues.
+              </td>
+            </tr>
+            <tr>
+              <td><span class="gb d">D</span></td>
+              <td>50–69</td>
+              <td>Serious weaknesses — SSLv3 or weak cipher suites present.</td>
+            </tr>
+            <tr>
+              <td><span class="gb f">F</span></td>
+              <td>0–49</td>
+              <td>
+                Critical failures — HTTPS not available, invalid certificate, or
+                SSLv2/SSLv3 only.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>💡 Key factors that affect the grade</h3>
+        <ul>
+          <li>
+            <strong>Protocol deprecation:</strong> TLS 1.0 and TLS 1.1 are
+            deprecated (RFC 8996). Enabling them lowers the score from A to B
+            range, even if TLS 1.3 is also available.
+          </li>
+          <li>
+            <strong>Certificate validity:</strong> An expired or self-signed
+            certificate caps the grade at D or below.
+          </li>
+          <li>
+            <strong>OCSP stapling:</strong> Allows the server to bundle
+            certificate revocation status inline, avoiding extra round-trips to
+            the CA. Its presence contributes to an A+ over A.
+          </li>
+          <li>
+            <strong>DNS CAA:</strong> A DNS record that restricts which
+            Certificate Authorities may issue certificates for the domain.
+            Absence is not penalised heavily but its presence signals mature
+            security management.
+          </li>
+          <li>
+            <strong>Certificate transparency:</strong> Inclusion in public CT
+            logs is expected and its absence is penalised.
+          </li>
+          <li>
+            <strong>HTTP/2 (ALPN):</strong> Indicates a modern server stack;
+            influences A vs A+ distinction at the same numeric score.
+          </li>
+        </ul>
+
+        <h3>FAQ</h3>
+        <p class="faq-q">
+          Why do two institutions with the same score get different grades (A vs
+          A+)?
+        </p>
+        <p class="faq-a">
+          The grade combines the numeric score with a secondary evaluation of
+          security-enhancing features (OCSP stapling, DNS CAA, HTTP/2, ALPN). An
+          institution scoring 96 with OCSP stapling and HTTP/2 receives A+; one
+          scoring 96 without those extras may receive A. The score measures
+          protocol correctness; the grade rewards additional hardening.
+        </p>
+
+        <p class="faq-q">
+          Why does the scanner only see a B even though the site looks secure in
+          the browser?
+        </p>
+        <p class="faq-a">
+          Browsers are permissive — they accept TLS 1.0 and 1.1 silently. The
+          scanner applies stricter rules aligned with NIST and BSI guidelines. A
+          green padlock in the browser does not imply an optimal TLS
+          configuration.
+        </p>
+
+        <p class="faq-q">Does a B grade mean the site is insecure?</p>
+        <p class="faq-a">
+          Not immediately. A B typically means legacy protocols are still
+          enabled, increasing the theoretical attack surface. The practical risk
+          depends on the client base and whether the server enforces server-side
+          cipher preference.
+        </p>
+      </div>
+    </div>
+
+    <!-- DNSSEC FAQ Modal -->
+    <div
+      class="modal-bg"
+      id="modal-dnssec"
+      onclick="if (event.target === this) closeModal('dnssec');"
+    >
+      <div class="modal">
+        <h2>
+          🛡️ DNSSEC &mdash; Scoring Guide
+          <button class="close" onclick="closeModal('dnssec')">&#10005;</button>
+        </h2>
+
+        <h3>How the score is calculated</h3>
+        <p>
+          The scanner queries each domain using the Google DNS-over-HTTPS API
+          and evaluates whether DNSSEC is deployed. If it is, the score (0–100)
+          reflects the cryptographic strength of the signing algorithms and
+          digest algorithms in use, scored according to
+          <strong>RFC 8624</strong> algorithm recommendations.
+        </p>
+        <p>
+          The RFC 8624 classification assigns each algorithm a score from 0
+          (MUST NOT use) to 100 (RECOMMENDED). The final DNSSEC score is derived
+          from the algorithm and digest scores of the active key pairs (ZSK and
+          KSK).
+        </p>
+
+        <h3>Grade thresholds</h3>
+        <table class="grade-table">
+          <thead>
+            <tr>
+              <th>Grade</th>
+              <th>Score</th>
+              <th>💡 What it means</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="gb a">A</span></td>
+              <td>88–100</td>
+              <td>
+                DNSSEC deployed with strong algorithms (ECDSAP256SHA256, Ed25519
+                with SHA-256 digest). RFC 8624 RECOMMENDED.
+              </td>
+            </tr>
+            <tr>
+              <td><span class="gb b">B</span></td>
+              <td>75–87</td>
+              <td>
+                DNSSEC deployed but using algorithms classified as OPTIONAL or
+                with mixed digest quality (e.g. ED25519 with SHA-384, or RSA
+                with NSEC3 and SHA-256 digest).
+              </td>
+            </tr>
+            <tr>
+              <td><span class="gb c">C</span></td>
+              <td>50–74</td>
+              <td>
+                DNSSEC deployed but using weak or deprecated algorithms (e.g.
+                RSASHA1-NSEC3-SHA1, RFC 8624 score 25). SHA-1 digest present.
+              </td>
+            </tr>
+            <tr>
+              <td><span class="gb f">F</span></td>
+              <td>0</td>
+              <td>
+                DNSSEC not deployed. The domain has no RRSIG, DNSKEY, or DS
+                records. DNS responses cannot be authenticated.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>💡 Key factors that affect the grade</h3>
+        <ul>
+          <li>
+            <strong>Algorithm choice:</strong> ECDSAP256SHA256 (Algorithm 13) is
+            the RFC 8624 RECOMMENDED algorithm and produces scores of 98.
+            RSA-based algorithms (e.g. RSASHA1) are deprecated and pull the
+            score down to the C range.
+          </li>
+          <li>
+            <strong>Digest algorithm:</strong> SHA-256 (type 2) is recommended.
+            Presence of SHA-1 (type 1) alongside SHA-256 lowers the score
+            because the weakest digest sets the effective security floor.
+          </li>
+          <li>
+            <strong>Non-existence proof method:</strong> NSEC3 (hashed denial of
+            existence) is preferred over plain NSEC for zones where enumerating
+            all hostnames is undesirable. Both are valid; NSEC3 is standard for
+            most modern deployments.
+          </li>
+          <li>
+            <strong>Key types:</strong> The Zone Signing Key (ZSK) signs
+            individual DNS records; the Key Signing Key (KSK) signs the DNSKEY
+            RRset. Both must be present and strong for a high score.
+          </li>
+        </ul>
+
+        <h3>FAQ</h3>
+        <p class="faq-q">Why do so many institutions score F?</p>
+        <p class="faq-a">
+          DNSSEC adoption in Norwegian HEIs is low (37% in this dataset).
+          Deploying DNSSEC requires coordination between the institution's DNS
+          operator and their domain registrar to publish DS records in the
+          parent zone (.no). Many institutions delegate DNS management to third
+          parties who have not enabled DNSSEC.
+        </p>
+
+        <p class="faq-q">What is the practical impact of missing DNSSEC?</p>
+        <p class="faq-a">
+          Without DNSSEC, DNS responses can be forged through cache poisoning
+          attacks (e.g. Kaminsky attack). An attacker could redirect users to a
+          malicious server serving a fraudulent login page for the institution's
+          portal, with no indication to the user that anything is wrong.
+        </p>
+
+        <p class="faq-q">
+          Can an institution have DNSSEC but still score B instead of A?
+        </p>
+        <p class="faq-a">
+          Yes. Deploying DNSSEC with RSA-based algorithms (particularly RSASHA1)
+          produces a B or C because RSA-SHA1 is deprecated by RFC 8624.
+          Migrating to ECDSAP256SHA256 (Algorithm 13) is the recommended upgrade
+          path and typically yields an A score.
+        </p>
+
+        <p class="faq-q">Does DNSSEC protect the website content?</p>
+        <p class="faq-a">
+          No. DNSSEC only authenticates DNS resolution — it confirms that the IP
+          address returned for a domain name is legitimate and has not been
+          tampered with in transit. It does not encrypt the connection or
+          protect the website itself. It is complementary to HTTPS, not a
+          replacement for it.
+        </p>
+      </div>
+    </div>
+
+    <!-- Security Headers FAQ Modal -->
+    <div
+      class="modal-bg"
+      id="modal-headers"
+      onclick="if (event.target === this) closeModal('headers');"
+    >
+      <div class="modal">
+        <h2>
+          🔑 Security Headers &mdash; Scoring Guide
+          <button class="close" onclick="closeModal('headers')">
+            &#10005;
+          </button>
+        </h2>
+
+        <h3>How the score is calculated</h3>
+        <p>
+          The scanner uses a browser emulator to load each institution's
+          homepage and inspect the HTTP response headers. The final score
+          (0–100) is computed from two components:
+        </p>
+        <ul>
+          <li>
+            <strong>Header component (60% weight):</strong> evaluates the
+            presence and correct configuration of 10 security response headers.
+          </li>
+          <li>
+            <strong>Redirect component (40% weight):</strong> evaluates whether
+            the site correctly redirects HTTP traffic to HTTPS and stays on the
+            same domain.
+          </li>
+        </ul>
+        <p style="margin-top: 0.5rem">
+          <code
+            style="
+              background: var(--th-bg);
+              padding: 0.2rem 0.4rem;
+              border-radius: 4px;
+              font-size: 0.78rem;
+            "
+            >final_score = header_component × 0.60 + redirect_component ×
+            0.40</code
+          >
+        </p>
+
+        <h3>Grade thresholds</h3>
+        <table class="grade-table">
+          <thead>
+            <tr>
+              <th>Grade</th>
+              <th>Score range</th>
+              <th>💡 What it means</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="gb a">A</span></td>
+              <td>80–100</td>
+              <td>
+                Most security headers present and correctly configured. HTTPS
+                redirect in place.
+              </td>
+            </tr>
+            <tr>
+              <td><span class="gb b">B</span></td>
+              <td>65–79</td>
+              <td>
+                Core headers present but several optional or advanced headers
+                missing. Redirect correct.
+              </td>
+            </tr>
+            <tr>
+              <td><span class="gb c">C</span></td>
+              <td>50–64</td>
+              <td>
+                Only a subset of headers implemented. Some important ones (e.g.
+                CSP, HSTS) missing.
+              </td>
+            </tr>
+            <tr>
+              <td><span class="gb d">D</span></td>
+              <td>40–49</td>
+              <td>
+                Minimal header coverage. Missing most security headers including
+                HSTS.
+              </td>
+            </tr>
+            <tr>
+              <td><span class="gb e">E</span></td>
+              <td>33–39</td>
+              <td>
+                Very few headers present. HTTPS redirect may be incomplete or
+                misconfigured.
+              </td>
+            </tr>
+            <tr>
+              <td><span class="gb f">F</span></td>
+              <td>0–32</td>
+              <td>
+                Almost no security headers. No HTTPS redirect or redirect goes
+                to a different domain.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>💡 The 10 evaluated headers</h3>
+        <table class="grade-table">
+          <thead>
+            <tr>
+              <th>Header</th>
+              <th>Purpose</th>
+              <th>Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Strict-Transport-Security</code></td>
+              <td>Forces browsers to use HTTPS for the domain</td>
+              <td>High</td>
+            </tr>
+            <tr>
+              <td><code>Content-Security-Policy</code></td>
+              <td>Restricts sources for scripts, styles, images</td>
+              <td>High</td>
+            </tr>
+            <tr>
+              <td><code>X-Frame-Options</code></td>
+              <td>Prevents clickjacking via iframes</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td><code>X-Content-Type-Options</code></td>
+              <td>Prevents MIME-type sniffing</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td><code>Referrer-Policy</code></td>
+              <td>Controls referrer information sent to third parties</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td><code>Cross-Origin-Opener-Policy</code></td>
+              <td>Isolates the browsing context from cross-origin windows</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td><code>Cross-Origin-Embedder-Policy</code></td>
+              <td>Requires cross-origin resources to opt in to embedding</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td><code>Cross-Origin-Resource-Policy</code></td>
+              <td>Restricts which origins can load the resource</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td><code>X-XSS-Protection</code></td>
+              <td>Legacy XSS filter (deprecated in modern browsers)</td>
+              <td>Low</td>
+            </tr>
+            <tr>
+              <td><code>Access-Control-Allow-Origin</code></td>
+              <td>CORS policy — controls cross-origin resource access</td>
+              <td>Context-dependent</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>FAQ</h3>
+        <p class="faq-q">Why is the redirect component worth 40%?</p>
+        <p class="faq-a">
+          An HTTPS redirect is a prerequisite for most security headers to be
+          meaningful — headers sent over plain HTTP can be stripped by a
+          man-in-the-middle. Institutions that redirect correctly to HTTPS (and
+          stay on the same domain) score 100 on the redirect component. Those
+          that do not redirect, or redirect to a different domain, score lower
+          and cannot fully benefit from headers like HSTS.
+        </p>
+
+        <p class="faq-q">
+          Why does an institution with all headers present still score below
+          100?
+        </p>
+        <p class="faq-a">
+          Each header is evaluated for correct configuration, not just presence.
+          For example, a <code>Content-Security-Policy</code> set to
+          <code>default-src *</code> (allowing all origins) is present but
+          misconfigured and scores lower than one with a restrictive policy.
+          Similarly, an HSTS header without <code>includeSubDomains</code> and a
+          sufficient <code>max-age</code> is penalised.
+        </p>
+
+        <p class="faq-q">Why is X-XSS-Protection listed if it is deprecated?</p>
+        <p class="faq-a">
+          The header is evaluated because some older browsers still support it
+          and its presence (or deliberate disabling via
+          <code>X-XSS-Protection: 0</code>) remains relevant for compatibility
+          assessments. Modern browsers have built-in XSS protection mechanisms
+          that supersede this header.
+        </p>
+
+        <p class="faq-q">
+          Why is Access-Control-Allow-Origin marked as context-dependent?
+        </p>
+        <p class="faq-a">
+          ACAO is a CORS header — its correct value depends entirely on the
+          institution's intended cross-origin access policy. Setting it to
+          <code>*</code> (open) is appropriate for public APIs but a risk for
+          authenticated portals. The scanner evaluates its presence and checks
+          for obviously permissive configurations.
+        </p>
+      </div>
+    </div>
+
+    <!-- HEI Detail Modal (global admin) -->
+    <div
+      id="hei-detail-overlay"
+      class="hei-detail-overlay"
+      onclick="if(event.target===this)closeHeiDetail()"
+    >
+      <div class="hei-detail-box">
+        <button class="hei-detail-close" onclick="closeHeiDetail()">&#x2715;</button>
+        <div id="hei-detail-content"></div>
+      </div>
+    </div>
+
+    <!-- AI Recommendations Modal -->
+    <div
+      id="ai-modal-overlay"
+      class="ai-modal-overlay"
+      onclick="closeAiModal()"
+    >
+      <div class="ai-modal-box" onclick="event.stopPropagation()">
+        <div class="ai-modal-head">
+          <div>
+            <div class="ai-modal-label">AI Security Recommendations</div>
+            <div id="ai-modal-hei" class="ai-modal-hei"></div>
+          </div>
+          <button class="ai-modal-close" onclick="closeAiModal()">
+            &#x2715;
+          </button>
+        </div>
+        <div id="ai-modal-body" class="ai-modal-body"></div>
+      </div>
+    </div>
+  </body>
+</html>

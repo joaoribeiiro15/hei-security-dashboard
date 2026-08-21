@@ -1,0 +1,421 @@
+/* Country selector bar */
+.cbar {
+  background: var(--card);
+  border-bottom: 1px solid var(--bdr);
+  padding: 0.6rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-height: 48px;
+}
+.cbar-label {
+  font-size: 0.72rem;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-right: 0.4rem;
+  white-space: nowrap;
+}
+.cpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--card2);
+  border: 1px solid var(--bdr);
+  border-radius: 20px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--t2);
+  transition: 0.18s;
+  white-space: nowrap;
+  user-select: none;
+}
+.cpill:hover {
+  border-color: var(--t3);
+  color: var(--t1);
+}
+.cpill.on {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  font-weight: 600;
+}
+.cpill .cflag {
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+.cpill .cname {
+  font-size: 0.78rem;
+}
+.cpill .cdel {
+  margin-left: 0.2rem;
+  opacity: 0.5;
+  font-size: 0.85rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.cpill .cdel:hover {
+  opacity: 1;
+  color: var(--red);
+}
+.cbar-empty {
+  font-size: 0.78rem;
+  color: var(--t3);
+  font-style: italic;
+}
+.cbar-hint {
+  font-size: 0.72rem;
+  color: var(--t3);
+  margin-left: auto;
+}
+
+/* Continent / country dropdowns in cbar */
+.cbar-dd {
+  position: relative;
+  display: inline-block;
+}
+.dd-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--card2);
+  border: 1px solid var(--bdr);
+  border-radius: 20px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--t2);
+  transition: 0.18s;
+  white-space: nowrap;
+  user-select: none;
+  font-family: inherit;
+}
+.dd-btn:hover {
+  border-color: var(--t3);
+  color: var(--t1);
+}
+.dd-btn.open {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.dd-chevron {
+  font-size: 0.6rem;
+  opacity: 0.6;
+  transition: transform 0.18s;
+}
+.dd-btn.open .dd-chevron {
+  transform: rotate(180deg);
+}
+.dd-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  background: var(--card);
+  border: 1px solid var(--bdr);
+  border-radius: 8px;
+  padding: 0.3rem;
+  min-width: 190px;
+  z-index: 300;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+}
+.dd-panel.open {
+  display: block;
+}
+.dd-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.38rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.81rem;
+  color: var(--t2);
+  transition: background 0.13s, color 0.13s;
+}
+.dd-item:hover {
+  background: var(--card2);
+  color: var(--t1);
+}
+.dd-item.on {
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--cyan);
+  font-weight: 600;
+}
+.dd-item .dd-del {
+  margin-left: auto;
+  opacity: 0;
+  font-size: 0.8rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  color: var(--t3);
+  transition: opacity 0.13s, color 0.13s;
+  flex-shrink: 0;
+}
+.dd-item:hover .dd-del {
+  opacity: 0.55;
+}
+.dd-item:hover .dd-del:hover {
+  opacity: 1;
+  color: var(--red);
+}
+.dd-sep {
+  height: 1px;
+  background: var(--bdr);
+  margin: 0.25rem 0.3rem;
+}
+body.role-regional .dd-del {
+  display: none;
+}
+
+/* Snapshot selector */
+.snap-sel {
+  background: var(--bg);
+  color: var(--t1);
+  border: 1px solid var(--bdr);
+  border-radius: 6px;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  min-width: 170px;
+}
+.snap-sel:hover {
+  border-color: var(--cyan);
+}
+.snap-sel:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.18);
+}
+
+/* Time panel button */
+#time-btn {
+  background: none;
+  border: 1px solid var(--bdr);
+  border-radius: 6px;
+  color: var(--t2);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  margin: 0.45rem 0.75rem;
+  font-family: inherit;
+  transition: 0.2s;
+  white-space: nowrap;
+}
+#time-btn:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+#time-btn.open {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: rgba(6, 182, 212, 0.08);
+}
+
+/* Time panel */
+#time-panel {
+  display: none;
+  position: fixed;
+  right: 0.75rem;
+  top: 0;
+  background: var(--card);
+  border: 1px solid var(--bdr);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  min-width: 260px;
+  max-width: 300px;
+  z-index: 9999;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+}
+#time-panel.open {
+  display: block;
+}
+#time-panel .snap-sel {
+  width: 100%;
+  min-width: unset;
+  margin-top: 0;
+}
+.tp-label {
+  font-size: 0.7rem;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+.tp-hint {
+  font-size: 0.7rem;
+  color: var(--t3);
+  margin-top: 0.65rem;
+  text-align: right;
+}
+
+/* Snapshot view toggle */
+.sv-toggle {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.55rem;
+}
+.sv-btn {
+  flex: 1;
+  font-size: 0.68rem;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 0.28rem 0.3rem;
+  background: var(--bg);
+  border: 1px solid var(--bdr);
+  border-radius: 5px;
+  color: var(--t3);
+  cursor: pointer;
+  transition: 0.15s;
+  white-space: nowrap;
+}
+.sv-btn:hover,
+.sv-btn.on {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+/* Snapshot list */
+.snap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--bdr);
+  border-radius: 6px;
+}
+.snap-list li {
+  padding: 0.42rem 0.75rem;
+  font-size: 0.78rem;
+  color: var(--t1);
+  cursor: pointer;
+  border-top: 1px solid var(--bdr);
+  transition: 0.12s;
+}
+.snap-list li:first-child {
+  border-top: none;
+}
+.snap-list li:hover {
+  background: var(--card2);
+}
+.snap-list li.active {
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--cyan);
+  font-weight: 600;
+}
+
+/* Calendar */
+.sv-cal {
+  font-size: 0.75rem;
+}
+.sv-cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.45rem;
+}
+.sv-cal-nav button {
+  background: none;
+  border: 1px solid var(--bdr);
+  border-radius: 4px;
+  color: var(--t2);
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  transition: 0.12s;
+}
+.sv-cal-nav button:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.sv-cal-nav span {
+  font-weight: 600;
+  color: var(--t1);
+  font-size: 0.78rem;
+}
+.sv-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+.sv-cal-dow {
+  color: var(--t3);
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.2rem 0;
+}
+.sv-cal-day {
+  padding: 0.28rem 0;
+  border-radius: 4px;
+  color: var(--t2);
+  font-size: 0.72rem;
+  cursor: default;
+  min-height: 1.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+.sv-cal-day.has-snap {
+  color: var(--cyan);
+  cursor: pointer;
+  font-weight: 600;
+  background: rgba(6, 182, 212, 0.08);
+}
+.sv-cal-day.has-snap:hover {
+  background: rgba(6, 182, 212, 0.2);
+}
+.sv-cal-day.active-day {
+  background: var(--cyan) !important;
+  color: #0f172a !important;
+  border-radius: 4px;
+}
+.sv-cal-day .snap-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--cyan);
+  display: block;
+}
+.sv-cal-day.active-day .snap-dot {
+  background: #0f172a;
+}
+.sv-day-times {
+  margin-top: 0.3rem;
+  max-height: 80px;
+  overflow-y: auto;
+  border: 1px solid var(--bdr);
+  border-radius: 4px;
+}
+.sv-day-times li {
+  list-style: none;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.72rem;
+  color: var(--t1);
+  cursor: pointer;
+  border-top: 1px solid var(--bdr);
+}
+.sv-day-times li:first-child {
+  border-top: none;
+}
+.sv-day-times li:hover {
+  background: var(--card2);
+  color: var(--cyan);
+}
+
+/* Country-bar delete chevron hidden for non-admin roles */
+body.role-regional .cpill .cdel {
+  display: none;
+}

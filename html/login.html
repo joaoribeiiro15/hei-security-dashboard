@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - HEI Web Security Assessment</title>
+<script>
+  // Applies the saved theme before first paint so the page never flashes
+  // dark-then-light (or vice versa) on load. Dark is the default. Kept in
+  // sync with the same logic in index.html / theme.js.
+  (function () {
+    var t = "dark";
+    try {
+      var saved = localStorage.getItem("hei_theme");
+      if (saved === "light" || saved === "dark") t = saved;
+    } catch (e) {}
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0e1a;--card:#111827;--card2:#1a2235;--bdr:#1e293b;--t1:#e2e8f0;--t2:#94a3b8;--t3:#64748b;--blue:#3b82f6;--cyan:#06b6d4;--green:#10b981;--amber:#f59e0b;--red:#ef4444;--purple:#8b5cf6;--r:12px;--body-bg:radial-gradient(ellipse at top,#1e1b4b 0%,#0a0e1a 55%);--input-focus-bg:#1e293b;--err-fg:#fca5a5}
+:root[data-theme="light"]{--bg:#f4f6fb;--card:#ffffff;--card2:#f1f4f9;--bdr:#dfe4ec;--t1:#101828;--t2:#475569;--t3:#64748b;--body-bg:radial-gradient(ellipse at top,#e0e7ff 0%,#f4f6fb 55%);--input-focus-bg:#ffffff;--err-fg:#b91c1c}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;color:var(--t1);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;background:var(--body-bg)}
+.mono{font-family:'JetBrains Mono',monospace}
+
+.theme-toggle{position:fixed;top:1.2rem;right:1.2rem;display:inline-flex;align-items:center;gap:.35rem;background:var(--card);border:1px solid var(--bdr);color:var(--t2);border-radius:20px;padding:.4rem .9rem;font-size:.72rem;font-weight:600;font-family:inherit;cursor:pointer;transition:.15s}
+.theme-toggle:hover{border-color:var(--cyan);color:var(--cyan)}
+
+.wrap{width:100%;max-width:460px}
+.card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:2.2rem 2rem;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+
+.badge-row{display:flex;justify-content:center;margin-bottom:1.2rem}
+.badge{display:inline-flex;align-items:center;gap:.4rem;background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.25);color:var(--cyan);border-radius:20px;padding:.3rem .9rem;font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+
+h1{font-size:1.35rem;font-weight:700;text-align:center;margin-bottom:.3rem;background:linear-gradient(135deg,var(--cyan),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{text-align:center;color:var(--t2);font-size:.82rem;margin-bottom:1.6rem}
+
+.field{margin-bottom:.9rem}
+.field label{display:block;font-size:.7rem;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:.35rem}
+.field input{width:100%;background:var(--card2);border:1px solid var(--bdr);border-radius:8px;padding:.7rem .85rem;color:var(--t1);font-size:.88rem;font-family:inherit;transition:.15s}
+.field input:focus{outline:none;border-color:var(--cyan);background:var(--input-focus-bg)}
+.field input::placeholder{color:var(--t3)}
+
+.btn{width:100%;background:linear-gradient(135deg,var(--cyan),var(--blue));color:#fff;border:none;border-radius:8px;padding:.8rem;font-size:.9rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:.5rem;transition:.15s;letter-spacing:.02em}
+.btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+
+.err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);color:var(--err-fg);border-radius:8px;padding:.6rem .8rem;font-size:.78rem;margin-top:.8rem;display:none}
+.err.on{display:block}
+
+.footer{text-align:center;color:var(--t3);font-size:.7rem;margin-top:1.5rem;letter-spacing:.03em}
+.footer .mono{color:var(--t2)}
+</style>
+</head>
+<body>
+<button id="theme-toggle" class="theme-toggle" type="button" onclick="toggleTheme()">&#9728;&#65039; Light</button>
+<div class="wrap">
+  <div class="card">
+    <div class="badge-row"><span class="badge">Login Page</span></div>
+    <h1>HEI Web Security Assessment</h1>
+    <div class="subtitle">Sign in to access the dashboard</div>
+
+    <div class="field">
+      <label for="u">Username</label>
+      <input id="u" type="text" autocomplete="username" placeholder="username" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="p">Password</label>
+      <input id="p" type="password" autocomplete="current-password" placeholder="••••••••">
+    </div>
+
+    <button id="btn" class="btn" type="button">Sign in</button>
+    <div id="err" class="err"></div>
+
+    <div class="footer">Local research platform, <span class="mono">Master's thesis</span></div>
+  </div>
+</div>
+
+<script>
+// =============================================================================
+// Identity Provider — database-backed via POST /auth
+// =============================================================================
+// The login form POSTs credentials to the Python backend (/auth), which
+// validates them against the MySQL database defined in users/seed.sql.
+// On success the backend returns a signed token that is stored in
+// sessionStorage and validated by index.html on every load.
+// =============================================================================
+
+const SESSION_KEY = 'hei_auth';
+
+// ============================================================================
+// Theme (dark/light) — same localStorage key as the dashboard, so the choice
+// carries over between the login page and index.html.
+// ============================================================================
+const THEME_KEY = 'hei_theme';
+
+function getTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+function _updateThemeToggleButton(theme) {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  btn.innerHTML = theme === 'light' ? '&#127769; Dark' : '&#9728;&#65039; Light';
+}
+function setTheme(theme) {
+  const t = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
+  _updateThemeToggleButton(t);
+}
+function toggleTheme() {
+  setTheme(getTheme() === 'light' ? 'dark' : 'light');
+}
+_updateThemeToggleButton(getTheme());
+
+function showError(msg) {
+  const el = document.getElementById('err');
+  el.textContent = msg;
+  el.classList.add('on');
+}
+function clearError() {
+  document.getElementById('err').classList.remove('on');
+}
+
+async function doLogin(username, password) {
+  clearError();
+  const btn = document.getElementById('btn');
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  try {
+    const res = await fetch('/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      showError(data.error || 'Invalid username or password.');
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+      return;
+    }
+
+    try {
+      sessionStorage.setItem(SESSION_KEY, data.token);
+    } catch (e) {
+      showError('Could not store session. Enable cookies/storage for this site.');
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+      return;
+    }
+
+    setTimeout(() => { window.location.href = '/'; }, 350);
+
+  } catch (e) {
+    showError('Could not reach the server. Is the backend running?');
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+  }
+}
+
+// Wiring
+document.getElementById('btn').addEventListener('click', () => {
+  const u = document.getElementById('u').value.trim();
+  const p = document.getElementById('p').value;
+  if (!u || !p) { showError('Enter both username and password.'); return; }
+  doLogin(u, p);
+});
+['u', 'p'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn').click();
+  });
+});
+
+// If an unexpired token is already stored, bounce straight to the app
+(function maybeRedirect() {
+  try {
+    const t = sessionStorage.getItem(SESSION_KEY);
+    if (!t) return;
+    const parts = t.split('.');
+    if (parts.length !== 3) return;
+    const payload = JSON.parse(decodeURIComponent(escape(atob(
+      parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    ))));
+    if (payload.exp && payload.exp > Date.now()) {
+      window.location.href = '/';
+    }
+  } catch (_) { /* ignore — stay on login */ }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+services:
+
+  # ─── MySQL database ──────────────────────────────────────────────────────────
+  db:
+    image: mysql:8.4
+    container_name: hei-dashboard-db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE:      ${MYSQL_DATABASE}
+      MYSQL_USER:          ${MYSQL_USER}
+      MYSQL_PASSWORD:      ${MYSQL_PASSWORD}
+    volumes:
+      # Persistent data volume — survives restarts; remove with `docker-compose down -v`
+      - hei_db_data:/var/lib/mysql
+      # Seed file: executed automatically on first start only
+      - ./users/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
+             "-u", "${MYSQL_USER}", "--password=${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─── Python backend ──────────────────────────────────────────────────────────
+  app:
+    build: .
+    container_name: hei-dashboard-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST:         db
+      DB_PORT:         3306
+      DB_NAME:         ${MYSQL_DATABASE}
+      DB_USER:         ${MYSQL_USER}
+      DB_PASSWORD:     ${MYSQL_PASSWORD}
+      USE_BCRYPT:      ${USE_BCRYPT:-1}
+      TOY_SECRET:      ${TOY_SECRET:?set TOY_SECRET in .env}
+      SESSION_SECONDS: ${SESSION_SECONDS:-28800}
+    volumes:
+      - geo_cache:/app/cache
+      - ./data:/app/data:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+
+  # ─── Nginx reverse proxy ─────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: hei-dashboard-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - app
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  geo_cache:
+  hei_db_data:

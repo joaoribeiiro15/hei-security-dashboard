@@ -1,0 +1,229 @@
+:root {
+  --bg: #0a0e1a;
+  --card: #111827;
+  --card2: #1a2235;
+  --bdr: #1e293b;
+  --t1: #e2e8f0;
+  --t2: #94a3b8;
+  --t3: #64748b;
+  --blue: #3b82f6;
+  --cyan: #06b6d4;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --purple: #8b5cf6;
+  --r: 12px;
+
+  /* Surfaces/accents that need a distinct light-mode value beyond a
+     straight neutral flip — see the [data-theme="light"] block below. */
+  --th-bg: #1e293b;
+  --overlay-bg: rgba(10, 14, 26, 0.92);
+  --status-good: #10b981;
+  --status-warn: #f59e0b;
+  --status-bad: #ef4444;
+  --risk-minimal: #10b981;
+  --risk-low: #06b6d4;
+  --risk-medium: #f59e0b;
+  --risk-high: #ef4444;
+  --gb-ap-bg: rgba(5, 150, 105, 0.2);
+  --gb-ap-fg: #34d399;
+  --gb-a-bg: rgba(16, 185, 129, 0.2);
+  --gb-a-fg: #34d399;
+  --gb-b-bg: rgba(52, 211, 153, 0.2);
+  --gb-b-fg: #6ee7b7;
+  --gb-c-bg: rgba(251, 191, 36, 0.2);
+  --gb-c-fg: #fbbf24;
+  --gb-d-bg: rgba(249, 115, 22, 0.2);
+  --gb-d-fg: #fb923c;
+  --gb-ef-bg: rgba(239, 68, 68, 0.2);
+  --gb-ef-fg: #f87171;
+  --delta-up-fg: #10b981;
+  --delta-dn-fg: #ef4444;
+  --delta-eq-fg: #94a3b8;
+}
+
+/* Light theme — toggled via data-theme="light" on <html>, set by theme.js.
+   Dark (the :root block above) remains the default on first visit. */
+:root[data-theme="light"] {
+  --bg: #f4f6fb;
+  --card: #ffffff;
+  --card2: #f1f4f9;
+  --bdr: #dfe4ec;
+  --t1: #101828;
+  --t2: #475569;
+  --t3: #64748b;
+
+  --th-bg: #e7ecf5;
+  --overlay-bg: rgba(244, 246, 251, 0.92);
+  --status-good: #059669;
+  --status-warn: #b45309;
+  --status-bad: #dc2626;
+  --risk-minimal: #059669;
+  --risk-low: #0e7490;
+  --risk-medium: #b45309;
+  --risk-high: #dc2626;
+  --gb-ap-bg: rgba(5, 150, 105, 0.14);
+  --gb-ap-fg: #047857;
+  --gb-a-bg: rgba(16, 185, 129, 0.14);
+  --gb-a-fg: #047857;
+  --gb-b-bg: rgba(13, 148, 136, 0.14);
+  --gb-b-fg: #0f766e;
+  --gb-c-bg: rgba(217, 119, 6, 0.14);
+  --gb-c-fg: #b45309;
+  --gb-d-bg: rgba(234, 88, 12, 0.14);
+  --gb-d-fg: #c2410c;
+  --gb-ef-bg: rgba(220, 38, 38, 0.14);
+  --gb-ef-fg: #b91c1c;
+  --delta-up-fg: #047857;
+  --delta-dn-fg: #b91c1c;
+  --delta-eq-fg: #475569;
+}
+:root[data-theme="light"] .hdr {
+  background: linear-gradient(135deg, #eef2ff, #f8fafc, #eef2ff);
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  font-family: "DM Sans", sans-serif;
+  background: var(--bg);
+  color: var(--t1);
+  min-height: 100vh;
+}
+.mono {
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* Header */
+.hdr {
+  background: linear-gradient(135deg, #0f172a, #1e1b4b, #0f172a);
+  border-bottom: 1px solid var(--bdr);
+  padding: 2rem 2rem 1.5rem;
+}
+.hdr h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--cyan), var(--blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hdr p {
+  color: var(--t2);
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
+}
+.hdr-m {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+.bdg {
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.73rem;
+  border: 1px solid;
+}
+.bdg.ok {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: var(--green);
+}
+.bdg.no {
+  background: rgba(100, 116, 139, 0.08);
+  border-color: rgba(100, 116, 139, 0.15);
+  color: var(--t3);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  background: var(--card);
+  border-bottom: 1px solid var(--bdr);
+  overflow-x: auto;
+}
+.tab {
+  padding: 0.9rem 1.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--t3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  user-select: none;
+  transition: 0.2s;
+}
+.tab:hover {
+  color: var(--t2);
+  background: var(--card2);
+}
+.tab.on {
+  color: var(--cyan);
+  border-bottom-color: var(--cyan);
+}
+
+/* Layout */
+.cnt {
+  padding: 1.5rem 2rem 3rem;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+.sec {
+  display: none;
+}
+.sec.on {
+  display: block;
+}
+.stl {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.dt {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.g4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.g2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.2rem;
+  margin-bottom: 1.5rem;
+}
+.g3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.2rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .cnt {
+    padding: 1rem;
+  }
+  .g2,
+  .g3 {
+    grid-template-columns: 1fr;
+  }
+  .g4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .srch-wrap {
+    width: 100%;
+  }
+  .fsg {
+    grid-template-columns: 1fr;
+  }
+}
