@@ -39,7 +39,7 @@ services:
       DB_USER:         ${MYSQL_USER}
       DB_PASSWORD:     ${MYSQL_PASSWORD}
       USE_BCRYPT:      ${USE_BCRYPT:-1}
-      TOY_SECRET:      ${TOY_SECRET:?set TOY_SECRET in .env}
+      TOY_SECRET:      ${TOY_SECRET:?TOY_SECRET must be set in .env}
       SESSION_SECONDS: ${SESSION_SECONDS:-28800}
     volumes:
       - geo_cache:/app/cache

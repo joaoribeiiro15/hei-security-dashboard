@@ -56,4 +56,4 @@ INSERT INTO users (username, password, role, country, display_name) VALUES
 
 -- Add your own institutional accounts below following the same pattern:
 -- INSERT INTO users (username, password, role, country, display_name) VALUES
---   ('admin@example.no', 'securepassword', 'regional', 'no', 'Example University Admin');
+--   ('admin@example.no', '<password-or-bcrypt-hash>', 'regional', 'no', 'Example University Admin');

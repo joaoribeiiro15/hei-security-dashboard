@@ -18,40 +18,30 @@ Education Institutions (HEIs)*
 
 ---
 
-## Data availability
-
-**This repository contains code only.** All scan results, consolidated datasets,
-and derived reports have been removed, because they contain per-institution
-security findings that cannot be published.
-
-`data/` and `cache/` ship empty (with a `.gitkeep` placeholder). To use the
-dashboard, generate your own scan output with the
-[HEI Security Scanner](../hei-security-scanner) and drop the resulting CSVs into
-`data/` (see **Loading data** below).
-
----
-
 ## Features
 
 ### MySQL-backed authentication
 
-User accounts live in a MySQL 8.4 container (`hei-dashboard-db`). The Python
-backend exposes a `POST /auth` endpoint that validates credentials against the
-database and issues a signed session token.
+User accounts are now stored in a MySQL 8.4 container (`hei-dashboard-db`)
+instead of being hardcoded in the frontend. The Python backend exposes a
+`POST /auth` endpoint that validates credentials against the database and
+issues a signed session token.
 
 To add, remove, or update users edit `users/seed.sql` and reset the database
 volume (see **User management** below).
 
-### Roles
+### Role changes
 
-There are two roles. **Regional Admin** grants access to all analysis tabs
-(Overview, HTTPS/TLS, DNSSEC, Security Headers, Institutions Table, NUTS2 Map).
-**Global Admin** additionally gets the **Data Management** tab and the
-**PDF Report**.
+The **Viewer** role has been removed. All institutional accounts are now
+**Regional Admin**, which grants access to all analysis tabs (Overview,
+HTTPS/TLS, DNSSEC, Security Headers, Institutions Table,
+NUTS2 Map).
+Only the **Data Management** tab and the **PDF Report** remain exclusive to
+the Global Admin.
 
 ### Norway NUTS2 regions
 
-The map and all regional charts use the six canonical SSB NUTS2 regions:
+The map and all regional charts now use the six canonical SSB NUTS2 regions:
 
 | Code  | Region                    |
 |-------|---------------------------|
@@ -85,10 +75,11 @@ automatically on login.
 
 ### Snapshot bar and per-section comparisons
 
-The dashboard exposes a **persistent snapshot bar** below the country selector,
-with two dropdowns: the snapshot you are viewing (A) and an optional comparison
-snapshot (B). The bar appears automatically when at least two stamped snapshots
-are loaded for the active country.
+Instead of a separate Timeline tab, the dashboard exposes a **persistent
+snapshot bar** below the country selector, with two dropdowns: the
+snapshot you are viewing (A) and an optional comparison snapshot (B).
+The bar appears automatically when at least two stamped snapshots are
+loaded for the active country.
 
 Choosing different values in the bar re-renders every analysis tab against
 the chosen snapshot. When a comparison snapshot is selected, every stat
@@ -98,9 +89,11 @@ inline delta pill (▲ green for upward movement, ▼ red for downward,
 
 Overview also shows a **trend mini-chart** above the grade-distribution
 charts, plotting average HTTPS/Headers scores and DNSSEC adoption
-across all stored snapshots in a single line graph.
+across all stored snapshots in a single line graph. This replaces the
+former dedicated Timeline tab and keeps trend information close to the
+rest of the analysis.
 
-Snapshots rely on two conventions produced by the scanner:
+Both conventions remain the same:
 
 - Every result CSV is written with a `__YYYY-MM-DDTHH-MM-SS` suffix in
   its filename, derived from the run that produced it.
@@ -113,26 +106,34 @@ automatically.
 
 ---
 
+## Data availability
+
+This repository contains **source code only**. No scan results, consolidated
+CSVs, LLM reports, logs or institution datasets are published here, and
+`data/` ships empty. The scan outputs underpinning the thesis are not
+distributed with the code; the HEI input lists are published separately in
+their own dataset repositories.
+
+To run the dashboard with your own data, produce the CSVs with the HEI
+Security Scanner and drop them into `data/` as described in *Loading data*.
+
+---
+
 ## Quick start
 
 ```bash
-# 1. Create your environment file and set your own credentials
+# 1. Copy the environment template and set real values
 cp .env.example .env
-$EDITOR .env          # replace every CHANGE_ME value
+#    Edit .env: set MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD and TOY_SECRET.
+#    Generate a signing secret with:
+#      python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 
-# 2. Set the login passwords in users/seed.sql (replace every CHANGE_ME)
-$EDITOR users/seed.sql
-
-# 3. Build and start all containers
+# 2. Build and start all containers
 docker-compose up --build
 
-# 4. Open the dashboard
+# 3. Open the dashboard
 #    http://localhost  →  redirects to /login automatically
 ```
-
-> `TOY_SECRET` must be identical in `.env` and in `html/js/auth.js`. Both ship
-> with a `CHANGE_ME` placeholder and the stack will not authenticate until you
-> set a real value in both places.
 
 The MySQL container initialises the database from `users/seed.sql` on the
 **first start only**. Subsequent restarts reuse the persisted volume
@@ -148,7 +149,7 @@ Open `users/seed.sql` and append an `INSERT` at the bottom:
 
 ```sql
 INSERT INTO users (username, password, role, country, display_name) VALUES
-  ('admin@myuniversity.no', '<your-password-or-bcrypt-hash>', 'regional', 'no', 'My University Admin');
+  ('admin@myuniversity.no', '<password-or-bcrypt-hash>', 'regional', 'no', 'My University Admin');
 ```
 
 Then reset the database volume so MySQL re-runs the seed file:
@@ -164,36 +165,38 @@ Connect directly to the running container:
 
 ```bash
 docker exec -it hei-dashboard-db \
-  mysql -u hei_app -p hei_dashboard   # prompts for MYSQL_PASSWORD
+  mysql -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" hei_dashboard
 ```
 
 Then run SQL inside the MySQL shell:
 
 ```sql
 -- Change a password
-UPDATE users SET password = 'newpassword' WHERE username = 'admin@hiof.no';
+UPDATE users SET password = '<new-password-or-bcrypt-hash>' WHERE username = 'admin@example.no';
 
 -- Add a new user
 INSERT INTO users (username, password, role, country, display_name) VALUES
-  ('admin@example.no', 'pass2026', 'regional', 'no', 'Example University Admin');
+  ('admin@example.no', '<password-or-bcrypt-hash>', 'regional', 'no', 'Example University Admin');
 
 -- Deactivate a user (soft delete, they cannot log in but the row is kept)
-UPDATE users SET active = 0 WHERE username = 'admin@uio.no';
+UPDATE users SET active = 0 WHERE username = 'admin@example.no';
 
 -- Permanently remove a user
 DELETE FROM users WHERE username = 'admin@example.no';
 ```
 
-### Seeded accounts
+### Seed accounts
 
-`users/seed.sql` creates three example accounts. Their passwords are shipped as
-`CHANGE_ME` placeholders and must be replaced before the first `docker-compose up`.
+`users/seed.sql` ships with three example accounts whose passwords are set to
+the placeholder `CHANGE_ME`. **Replace every placeholder before starting the
+stack for the first time**, since the seed file is executed only on the first
+run of the database container.
 
-| Username        | Password   | Role           | Country |
-|-----------------|------------|----------------|---------|
-| `admin`         | CHANGE_ME  | Global Admin   |         |
-| `admin@hiof.no` | CHANGE_ME  | Regional Admin | Norway  |
-| `admin@uio.no`  | CHANGE_ME  | Regional Admin | Norway  |
+| Username        | Password     | Role           | Country |
+|-----------------|--------------|----------------|---------|
+| `admin`         | `CHANGE_ME`  | Global Admin   |         |
+| `admin@hiof.no` | `CHANGE_ME`  | Regional Admin | Norway  |
+| `admin@uio.no`  | `CHANGE_ME`  | Regional Admin | Norway  |
 
 ### Roles
 
@@ -219,9 +222,9 @@ the database.
 
 ### Production passwords (bcrypt)
 
-`.env.example` ships with `USE_BCRYPT=1`. Setting `USE_BCRYPT=0` falls back to
-plain-text comparison, which is only acceptable on a throwaway localhost
-instance. To use bcrypt hashing:
+Password verification uses bcrypt by default (`USE_BCRYPT=1` in `.env`).
+Plain-text comparison (`USE_BCRYPT=0`) exists only for local development and
+must never be used on a reachable host. To create an account:
 
 1. Generate a hash:
 
@@ -231,7 +234,7 @@ python3 -c "import bcrypt; print(bcrypt.hashpw(b'mypassword', bcrypt.gensalt(12)
 
 2. Store the hash in the database instead of the plain-text password.
 
-3. Set `USE_BCRYPT=1` in `.env` and restart the stack:
+3. Keep `USE_BCRYPT=1` in `.env` and restart the stack:
 
 ```bash
 docker-compose down && docker-compose up --build
@@ -243,24 +246,25 @@ docker-compose down && docker-compose up --build
 
 ### Environment variables (`.env`)
 
-Copy `.env.example` to `.env` and set every `CHANGE_ME` value.
+All values live in `.env`, created from `.env.example`. Entries marked
+**required** have no default and the stack refuses to start without them.
 
-| Variable              | Shipped value   | Description                              |
-|-----------------------|-----------------|------------------------------------------|
-| `MYSQL_ROOT_PASSWORD` | `CHANGE_ME`     | MySQL root password (internal)           |
-| `MYSQL_DATABASE`      | `hei_dashboard` | Database name                            |
-| `MYSQL_USER`          | `hei_app`       | Application user                         |
-| `MYSQL_PASSWORD`      | `CHANGE_ME`     | Application user password                |
-| `USE_BCRYPT`          | `1`             | `1` to verify passwords as bcrypt hashes |
-| `SESSION_SECONDS`     | `28800`         | Token lifetime in seconds (8 hours)      |
-| `TOY_SECRET`          | `CHANGE_ME`     | HMAC signing secret, must match `html/js/auth.js` |
+| Variable              | Default         | Description                                      |
+|-----------------------|-----------------|--------------------------------------------------|
+| `MYSQL_ROOT_PASSWORD` | *required*      | MySQL root password (internal)                   |
+| `MYSQL_DATABASE`      | `hei_dashboard` | Database name                                    |
+| `MYSQL_USER`          | `hei_app`       | Application user                                 |
+| `MYSQL_PASSWORD`      | *required*      | Application user password                        |
+| `USE_BCRYPT`          | `1`             | `0` compares passwords as plain text (dev only)  |
+| `SESSION_SECONDS`     | `28800`         | Token lifetime in seconds (8 hours)              |
+| `TOY_SECRET`          | *required*      | HMAC signing secret; generate a random value     |
 
 ### Connecting to the database manually
 
 ```bash
 # Via docker exec (no port exposed on the host)
 docker exec -it hei-dashboard-db \
-  mysql -u hei_app -p hei_dashboard   # prompts for MYSQL_PASSWORD
+  mysql -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" hei_dashboard
 
 # Show all users
 SELECT id, username, role, country, active, created_at FROM users;
@@ -299,13 +303,11 @@ and every recognised CSV is returned for client-side parsing.
 
 ```
 data/
-├── no-heis-2026.csv                              # HEI source list
+├── no-heis-2026.csv
 ├── dnssec_consolidated_result.csv
 ├── https_consolidate_result.csv
 └── sh_final_result_with_scores_unique_hei.csv
 ```
-
-(Illustrative; the directory ships empty.)
 
 Country is detected automatically from the `country` column or the `NUTS2`
 column prefix. Multiple countries can coexist under separate subdirectories:
@@ -408,17 +410,16 @@ hei-security-dashboard/
 ├── Dockerfile
 ├── docker-compose.yml      app + nginx + db
 ├── requirements.txt        PyMySQL, bcrypt
-├── .env.example            Template for .env (MySQL credentials and config)
+├── .env.example            Template for .env (credentials and config)
 ├── README.md
-├── data/                   Drop CSVs here, auto-loaded on login (ships empty)
-├── cache/                  GeoJSON cache (ships empty)
+├── data/                   Drop CSVs here, auto-loaded on login (empty in this repo)
 ├── users/
 │   ├── seed.sql            Database schema and user accounts
 │   └── README.md           User management guide
 ├── html/
 │   ├── index.html          Main dashboard
 │   ├── login.html          Login page (calls POST /auth)
-│   ├── js/                 Frontend modules (auth, map, charts, report, builders)
+│   ├── js/                 Frontend modules (auth, map, charts, builders, …)
 │   ├── style/              Stylesheets
 │   └── geo/
 │       └── no.geojson      Bundled Norway NUTS2 geometry

@@ -99,7 +99,7 @@ function buildNational(sub) {
         renderMapCards(cc);
       }
     }
-  } else if (sub === "https") bHttps(ht, htB);
+  } else if (sub === "https") bHttps(ht, htB, src);
   else if (sub === "dnssec") bDnssec(dn, dnB);
   else if (sub === "headers") bHeaders(hd, hdB);
   // Institution detail table below charts

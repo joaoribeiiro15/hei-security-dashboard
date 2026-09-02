@@ -47,6 +47,30 @@
 .user-chip .logout:hover {
   color: var(--red);
 }
+/* The light theme's header is now a solid teal-to-blue banner (see
+   main.css), so the chip needs a translucent-white treatment instead of
+   the cyan-tinted one designed for a light card background — var(--t1)
+   and var(--cyan)/var(--blue) are dark in light mode and would disappear
+   into the dark banner. */
+:root[data-theme="light"] .hdr .user-chip {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+:root[data-theme="light"] .hdr .user-chip .avatar {
+  background: rgba(255, 255, 255, 0.24);
+  color: #fff;
+}
+:root[data-theme="light"] .hdr .user-chip .urole {
+  color: rgba(255, 255, 255, 0.7);
+}
+:root[data-theme="light"] .hdr .user-chip .logout {
+  color: rgba(255, 255, 255, 0.7);
+}
+:root[data-theme="light"] .hdr .user-chip .logout:hover {
+  color: #fff;
+  text-decoration: underline;
+}
 .hdr {
   position: relative;
 }
@@ -74,6 +98,12 @@
   margin-left: 0.4rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+/* #c4b5fd (violet-300) is a pale pastel picked for the dark card — on the
+   light theme's near-white pill background it drops to ~1.85:1 contrast,
+   effectively unreadable. */
+:root[data-theme="light"] .pl-badge {
+  color: #6d28d9;
 }
 
 /* Institutions Table - rank column, blur, own-institution highlight */
@@ -188,6 +218,32 @@
 .pass .audit-icon { background:#10b981; color:#fff; }
 .fail .audit-icon { background:#ef4444; color:#fff; }
 .warn .audit-icon { background:#f59e0b; color:#000; }
+/* Dark-theme pass/fail/warn cards are a neutral card with just a colored
+   top stripe — on the light theme's white background that read as flat,
+   so give the whole card a subtle tint of its own state color instead
+   (a proper status-card look) using the deepened --green/--red/--amber
+   already defined for [data-theme="light"] above. */
+:root[data-theme="light"] .audit-test.pass {
+  background: rgba(4, 120, 87, 0.06);
+  border-color: rgba(4, 120, 87, 0.22);
+  border-top-color: var(--green);
+}
+:root[data-theme="light"] .audit-test.fail {
+  background: rgba(185, 28, 28, 0.06);
+  border-color: rgba(185, 28, 28, 0.22);
+  border-top-color: var(--red);
+}
+:root[data-theme="light"] .audit-test.warn {
+  background: rgba(180, 83, 9, 0.07);
+  border-color: rgba(180, 83, 9, 0.24);
+  border-top-color: var(--amber);
+}
+:root[data-theme="light"] .pass .audit-icon { background: var(--green); }
+:root[data-theme="light"] .fail .audit-icon { background: var(--red); }
+/* Black-on-#f59e0b (dark theme) has 9.8:1 contrast; black on the deepened
+   light-theme --amber only clears 4.2:1, so switch the glyph to white
+   there instead (5:1) rather than carry the dark theme's choice over. */
+:root[data-theme="light"] .warn .audit-icon { background: var(--amber); color: #fff; }
 .audit-test-title { font-size: .9rem; font-weight: 600; color: var(--t1); }
 .audit-test-desc { font-size: .83rem; color: var(--t2); line-height: 1.55; }
 .audit-tech { background: var(--card); border: 1px solid var(--bdr); border-radius: 5px; padding: .38rem .65rem; font-size: .78rem; color: var(--green); font-family: monospace; white-space: pre-wrap; word-break: break-all; margin-top: .1rem; }
@@ -392,6 +448,12 @@
 .audit-ai-reason { font-size: .77rem; color: var(--t2); margin-bottom: 4px; }
 .audit-ai-fix { font-size: .77rem; color: #93c5fd; }
 .audit-ai-fix::before { content: "💡 "; }
+/* .audit-ai-label / .audit-ai-fix are pale pastel blues (2.5:1 / 1.8:1
+   against white) tuned to sit on the near-black dark-theme card — on the
+   light theme's white card they're nearly invisible, so give them a
+   deep-blue value that actually clears WCAG AA there. */
+:root[data-theme="light"] .audit-ai-label { color: #1d4ed8; }
+:root[data-theme="light"] .audit-ai-fix { color: #1d4ed8; }
 
 /* AI recommendation card in Overview (regional accounts) */
 .ai-rec-card {

@@ -23,7 +23,7 @@ Open `seed.sql` and append an INSERT at the bottom:
 
 ```sql
 INSERT INTO users (username, password, role, country, display_name) VALUES
-  ('admin@myuniversity.no', 'securepassword', 'regional', 'no', 'My University Admin');
+  ('admin@myuniversity.no', '<bcrypt-hash>', 'regional', 'no', 'My University Admin');
 ```
 
 Then reset the database volume as shown above, or connect directly:
@@ -46,13 +46,17 @@ docker exec -it hei-dashboard-db \
 Use ISO 3166-1 alpha-2 lowercase: `no`, `de`, `fr`, `it`, `pt`, etc.
 Set `country = NULL` only for `global` accounts.
 
-## Password hashing (production)
+## Password hashing
 
-Passwords are stored as plain text by default for development convenience.
-For production, set `USE_BCRYPT=1` in your `.env` file and store bcrypt hashes:
+`seed.sql` ships with the placeholder password `CHANGE_ME` on every example
+account. Replace each placeholder before the first `docker-compose up`, since
+the seed file runs only on the first start of the database container.
+
+Password verification uses bcrypt by default (`USE_BCRYPT=1` in `.env`).
+Generate a hash with:
 
 ```bash
 python3 -c "import bcrypt; print(bcrypt.hashpw(b'mypassword', bcrypt.gensalt(12)).decode())"
 ```
 
-Replace the plain-text password in the INSERT with the resulting hash.
+Use the resulting hash as the `password` value in the INSERT.

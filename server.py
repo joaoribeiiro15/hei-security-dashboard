@@ -50,7 +50,7 @@ CACHE_DIR.mkdir(exist_ok=True)
 _file_registry: dict = {}
 
 # ── Auth config ───────────────────────────────────────────────────────────────
-TOY_SECRET      = os.environ.get("TOY_SECRET", "CHANGE_ME").encode()
+TOY_SECRET      = os.environ["TOY_SECRET"].encode()  # required; no insecure default
 SESSION_SECONDS = int(os.environ.get("SESSION_SECONDS", 28800))
 USE_BCRYPT      = os.environ.get("USE_BCRYPT", "1").strip() == "1"
 
@@ -59,7 +59,7 @@ DB_HOST     = os.environ.get("DB_HOST", "db")
 DB_PORT     = int(os.environ.get("DB_PORT", 3306))
 DB_NAME     = os.environ.get("DB_NAME", "hei_dashboard")
 DB_USER     = os.environ.get("DB_USER", "hei_app")
-DB_PASSWORD = os.environ.get("DB_PASSWORD", "CHANGE_ME")
+DB_PASSWORD = os.environ["DB_PASSWORD"]  # required; no default
 
 GISCO_BASE = "https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson"
 

@@ -53,7 +53,25 @@
   --t2: #475569;
   --t3: #64748b;
 
-  --th-bg: #e7ecf5;
+  /* The dark palette's --cyan/--green/--red/--blue/--amber/--purple are
+     tuned to pop on a near-black background (contrast 2.1-4.2:1 against
+     white) and are used directly as text/icon/border color in ~50 places
+     (active tabs, links, focus rings, rank values...). Deepened by two
+     Tailwind steps each so they clear WCAG AA (4.5:1) on white cards
+     instead of just failing quietly. */
+  --cyan: #0e7490;
+  --blue: #1d4ed8;
+  --green: #047857;
+  --amber: #b45309;
+  --red: #b91c1c;
+  --purple: #6d28d9;
+
+  /* Table header band. Was #e7ecf5 — barely darker than --bg (#f4f6fb,
+     1.10:1 contrast between them), so header rows didn't read as a
+     distinct band. Deepened within the same slate-blue neutral family
+     already used for --bg/--card2/--bdr (not a new hue); --t2 header
+     text stays a comfortable 5.16:1 against it. */
+  --th-bg: #ccd6e3;
   --overlay-bg: rgba(244, 246, 251, 0.92);
   --status-good: #059669;
   --status-warn: #b45309;
@@ -78,8 +96,34 @@
   --delta-dn-fg: #b91c1c;
   --delta-eq-fg: #475569;
 }
+/* Light theme header: a solid teal-to-blue banner (same hue pair as the
+   dark theme's header) instead of a near-white gradient, so the light
+   theme's chrome has the same presence the dark theme's navy header has.
+   Everything inside — title, subtitle, badges, user chip — needs its own
+   light-theme override below since it now sits on a dark ground. */
 :root[data-theme="light"] .hdr {
-  background: linear-gradient(135deg, #eef2ff, #f8fafc, #eef2ff);
+  background: linear-gradient(120deg, #0e7490 0%, #155e8a 48%, #1d4ed8 100%);
+  border-bottom: none;
+}
+:root[data-theme="light"] .hdr h1 {
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  -webkit-text-fill-color: #fff;
+  color: #fff;
+}
+:root[data-theme="light"] .hdr p {
+  color: rgba(255, 255, 255, 0.82);
+}
+:root[data-theme="light"] .hdr .bdg.ok {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ecfeff;
+}
+:root[data-theme="light"] .hdr .bdg.no {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.6);
 }
 * {
   margin: 0;

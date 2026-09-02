@@ -1,9 +1,14 @@
-# Scanner data - never commit raw scan results
-data/
-cache/
-
-# Secrets
+# Environment and secrets — never commit
 .env
+.env.local
+*.pem
+*.key
+certs/
+
+# Scanner data — never commit raw data or results
+data/*
+!data/.gitkeep
+cache/
 
 # Python
 __pycache__/
@@ -14,3 +19,9 @@ venv/
 # OS / editor
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
+
+# Local tooling / assistant scratch files
+.*-local/
+*.local.md

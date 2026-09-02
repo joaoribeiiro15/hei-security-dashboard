@@ -113,7 +113,7 @@ function bOverview(dn, ht, hd, meta, llm, cmp) {
   if (oa) oa.innerHTML = "";
 }
 
-function bHttps(d, dB) {
+function bHttps(d, dB, src) {
   const es = document.getElementById("hs"),
     ec = document.getElementById("hc");
   if (!d) {
@@ -130,11 +130,26 @@ function bHttps(d, dB) {
   };
   const cur = _avg(d),
     prev = _avg(dB);
-  const avg = cur != null ? cur.toFixed(1) : "—";
-  const tls13Cur = countTrue(d, "TLS1_3"),
-    tls13Prev = dB ? countTrue(dB, "TLS1_3") : null;
+  const avg = cur != null ? cur.toFixed(2) : "—";
+  // TLS 1.3 / TLS 1.0 shares are measured against every registered HEI
+  // (the source list), not just the ones that returned a usable scan —
+  // an institution that never got scanned still doesn't support TLS 1.3.
+  // Falls back to the scanned count when no source list is loaded.
+  const total = src && src.length ? src.length : d.length;
+  const totalB = dB ? (src && src.length ? src.length : dB.length) : null;
+  const _pct = (rows, col, base) =>
+    base ? (countTrue(rows, col) / base) * 100 : null;
+  const tls13Cur = _pct(d, "TLS1_3", total),
+    tls13Prev = dB ? _pct(dB, "TLS1_3", totalB) : null;
+  const tls1Cur = _pct(d, "TLS1", total),
+    tls1Prev = dB ? _pct(dB, "TLS1", totalB) : null;
+  const _bool = (v) => String(v || "").trim().toLowerCase() === "true";
+  const _cleanCount = (rows) =>
+    rows.filter((r) => _bool(r.valid_certificate) && !_bool(r.cert_at_risk))
+      .length;
+  const cleanCur = (_cleanCount(d) / d.length) * 100,
+    cleanPrev = dB ? (_cleanCount(dB) / dB.length) * 100 : null;
   es.innerHTML =
-    sCard("Institutions", d.length, "scanned") +
     sCard(
       "Average Score",
       avg,
@@ -142,15 +157,26 @@ function bHttps(d, dB) {
       renderDeltaPill(cur, prev),
     ) +
     sCard(
-      "Valid Certificates",
-      countTrue(d, "valid_certificate"),
-      "of " + d.length,
+      "Support TLS 1.3",
+      tls13Cur.toFixed(1) + "%",
+      "of " + total + " registered HEIs",
+      renderDeltaPill(tls13Cur, tls13Prev, { suffix: "%", decimals: 1 }),
     ) +
     sCard(
-      "TLS 1.3",
-      tls13Cur,
-      "of " + d.length,
-      renderDeltaPill(tls13Cur, tls13Prev, { decimals: 0 }),
+      "Certificates Validate Cleanly",
+      cleanCur.toFixed(1) + "%",
+      "of the " + d.length + " with a usable result",
+      renderDeltaPill(cleanCur, cleanPrev, { suffix: "%", decimals: 1 }),
+    ) +
+    sCard(
+      "Still Accept TLS 1.0",
+      '<span style="color:#f97316">' + tls1Cur.toFixed(1) + "%</span>",
+      "of " + total + " registered HEIs",
+      renderDeltaPill(tls1Cur, tls1Prev, {
+        suffix: "%",
+        decimals: 1,
+        inverse: true,
+      }),
     );
   ec.innerHTML =
     cCard("hg", "Grade Distribution") +

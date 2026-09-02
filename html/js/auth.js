@@ -3,7 +3,7 @@
 // the app run. If anything is wrong we bounce back to /login and stop.
 // ============================================================================
 const SESSION_KEY = "hei_auth";
-const TOY_SECRET = "CHANGE_ME"; // Must match .env TOY_SECRET
+const TOY_SECRET = "CHANGE_ME"; // Must match TOY_SECRET in .env
 let AUTH = null; // populated by restoreSession() - { sub, role, country, displayName }
 
 // HMAC-SHA256 token verification (mirrors server.py _toy_sign)
